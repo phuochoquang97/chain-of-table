@@ -74,8 +74,11 @@ def simple_query(sample, table_info, llm, debug=False, use_demo=False, llm_optio
     statement = sample["statement"]
 
     prompt = ""
-    prompt += "Here are the statement about the table and the task is to tell whether the statement is True or False.\n"
-    prompt += "If the statement is true, answer YES, and otherwise answer NO.\n"
+    # prompt += "Here are the statement about the table and the task is to tell whether the statement is True or False.\n"
+    # prompt += "If the statement is true, answer YES, and otherwise answer NO.\n"
+    prompt += "You are performing a chain-of-thought reasoning task based on a table.\n"
+    prompt += "Given the following question about the table, your task is to analyze the relevant information and provide the final answer.\n"
+    prompt += "Please formatpromot your response as: 'Answer: <your_answer>'\n"
 
     if use_demo:
         prompt += "\n"
