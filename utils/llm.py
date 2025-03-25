@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-import openai
+from groq import Groq
 import time
 import numpy as np
 
@@ -22,6 +22,8 @@ class ChatGPT:
     def __init__(self, model_name, key):
         self.model_name = model_name
         self.key = key
+        self.client = Groq( api_key=self.key)
+        
 
     def get_model_options(
         self,
@@ -34,7 +36,7 @@ class ChatGPT:
             temperature=temperature,
             n=n_sample,
             top_p=per_example_top_p,
-            max_tokens=per_example_max_decode_steps,
+            max_completion_tokens=per_example_max_decode_steps,
         )
 
     def generate_plus_with_score(self, prompt, options=None, end_str=None):
@@ -53,41 +55,30 @@ class ChatGPT:
         error = None
         while gpt_responses is None:
             try:
-                gpt_responses = openai.ChatCompletion.create(
+                gpt_responses = self.client.chat.completions.create(
                     model=self.model_name,
-                    messages=messages,
+                    messages=np.array(messages),
+                    temperature=options['temperature'],
+                    max_completion_tokens=options['max_completion_tokens'],
+                    top_p=1,
                     stop=end_str,
-                    api_key=self.key,
-                    **options
                 )
+                
                 error = None
             except Exception as e:
-                print(str(e), flush=True)
+                print(f"Error: {str(e)}", flush=True)
                 error = str(e)
-                if "This model's maximum context length is" in str(e):
-                    print(e, flush=True)
-                    gpt_responses = {
-                        "choices": [{"message": {"content": "PLACEHOLDER"}}]
-                    }
-                elif retry_num > retry_limit:
-                    error = "too many retry times"
-                    gpt_responses = {
-                        "choices": [{"message": {"content": "PLACEHOLDER"}}]
-                    }
-                else:
-                    time.sleep(60)
                 retry_num += 1
+                time.sleep(10)  # Reduced wait time
         if error:
             raise Exception(error)
-        results = []
-        for i, res in enumerate(gpt_responses["choices"]):
-            text = res["message"]["content"]
-            fake_conf = (len(gpt_responses["choices"]) - i) / len(
-                gpt_responses["choices"]
-            )
-            results.append((text, np.log(fake_conf)))
+        
+        if hasattr(gpt_responses, "choices") and gpt_responses.choices:
+            text = gpt_responses.choices[0].message.content or ""
+        else:
+            raise ValueError("Invalid API response: 'choices' field missing or empty")
 
-        return results
+        return [(text, np.float64(0.0))]
 
     def generate(self, prompt, options=None, end_str=None):
         if options is None:
